@@ -31,7 +31,7 @@ var dayMap = {
  */
 function execute() {
   // check for any SKUs that were scanned, but not inside today's SKU list
-  var shouldContinue = crossReferenceSKU();
+  var shouldContinue = doubleCheckSKUs();
 
   if (shouldContinue == true) {
     start();
@@ -42,12 +42,12 @@ function execute() {
 
 /**
  * 
- * export_sheet()
+ * exportSheet()
  * 
- * 
+ * duplicates the inventory sheet and formats it so that we can import it back into Shopify.
  * 
  */
-function export_sheet() {
+function exportSheet() {
   // get all the sheets
   var allSheets = SPREADSHEET.getSheets();
 
@@ -55,7 +55,7 @@ function export_sheet() {
   for (var i = 0; i < allSheets.length; i++) {
     var currentSheet = allSheets[i];
     if (currentSheet.getName().endsWith("_STOCKY")) {
-      currentDayOfTheWeek = currentSheet.getName().split('_')[0]; // update "currentDayOfTheWeek" to be whatever day we are taking 
+      currentDayOfTheWeek = currentSheet.getName().split('_')[0];
     }
   }
 
@@ -76,11 +76,11 @@ function export_sheet() {
   exportSheet.deleteColumn(13); 
   exportSheet.deleteColumn(12); 
 
-  // rename col L[0] to Main Office
+  // rename cell L1 to 'Main Office'
   exportSheet.getRange("L1").setValue("Main Office");
 
+  // save the result of the formula for later if doing today's inventory
   if (doingTodaysInventory == true) {
-    // save the result of the formula for later
     getTodayScore();
   }
 }
@@ -200,6 +200,7 @@ function duplicateSheet(oldSheetName, newSheetName) {
  * getSKUList()
  * 
  * @param: column, int = the column that we will be pulling SKUs for (monday = 1, tuesday = 2...)
+ * @return: list of SKUs for said day
  * 
  * get the list of 'valid' SKUs so that we can delete any SKUs not in this list later
  * 
@@ -247,12 +248,12 @@ function insertFormulas() {
  * dayToNumber()
  * 
  * convert a day of the week to a number
- * 
+ * @return: int number noted below
  * monday = 1, tuesday = 2, wednesday = 3, thursday = 4, friday = 5
  * 
  */
-function dayToNumber() {
-  switch (currentDayOfTheWeek) {
+function dayToNumber(day) {
+  switch (day) {
     case 'MONDAY':
       return 1;
     case 'TUESDAY':
@@ -271,7 +272,10 @@ function dayToNumber() {
  * 
  * getCurrentDayOfWeek()
  * 
+ * @return: string of day of the week
+ * 
  * gets the current day of the week based on time
+ * 
  * 
  */
 function getCurrentDayOfWeek() {
@@ -302,7 +306,7 @@ function hideSpecifiedColumns(range) {
 
 /**
  * 
- * sortSheetByFirstColumn()
+ * sortSheetBySKU()
  * 
  * sort the newly made sheet alphabetically for easy access to live counting hats
  * 
@@ -356,9 +360,10 @@ function onOpen() {
   // Create a custom menu
   UI.createMenu('JASIAH')
       .addItem("Take today's inventory", 'execute')
-      .addItem('Export inventory', 'export_sheet')
+      .addItem("Take multiple days of inventory", "takeMultipleDaysOfInventory")
+      .addItem('Export inventory', 'exportSheet')
       .addItem('Take custom day inventory (M/T/W/TH/F)', 'takeCustomInventory')
-      .addItem('Take Inventory of everything', 'doEverything')
+      .addItem('Take inventory of everything', 'doEverything')
       .addItem('Clear sheet', 'clear')
       .addToUi();
 }
@@ -419,59 +424,12 @@ function clear() {
 
 /**
  * 
- * crossReferenceSKU()
- * 
- * alert the user of all the SKUs that were scanned but not inside SKU list for the day
- * 
- */
-function crossReferenceSKU() {
-  // get a list of every SKU scanned from `${currentDayOfTheWeek}_STOCKY` column C
-  var scannedSKUs = SPREADSHEET.getSheetByName(`${currentDayOfTheWeek}_STOCKY`);
-
-  if (!scannedSKUs) {
-    throw new Error ("There isn't a stocky sheet inside the spreadsheet");
-  }
-
-  var scannedSKUsValues = getNonEmptyValues(scannedSKUs, 3);
-
-  // remove the first item
-  scannedSKUsValues.shift();
-
-  // get a list of the SKUs from currentDayOfTheWeek
-  var todaysSKUs = getSKUList(dayToNumber(currentDayOfTheWeek));
-
-  // find any SKUs that were in the scannedSKUs list but not in todaysSKUs list
-  var missingSKUs = [];
-  for (var i = 0; i < scannedSKUsValues.length; i++) {
-    var scannedSKU = scannedSKUsValues[i];
-    if (todaysSKUs.indexOf(scannedSKU) === -1) {
-      missingSKUs.push(scannedSKU);
-    }
-  }
-
-  // alert ui with any SKUs that were in 
-  if (missingSKUs.length == 0) {
-    UI.alert("All scanned SKUs are in today's SKU list :)");
-    return true;
-  }
-  else {
-    var response = UI.alert(`Below is all SKUs that were scanned today, but not inside today's list: \n\n\n ${missingSKUs} \n\n\n Do you want to continue anyway?`, UI.ButtonSet.YES_NO);
-    if (response == UI.Button.YES) {
-      return true;
-    }
-    else {
-      return false;
-    }
-  }
-}
-
-
-/**
- * 
  * getNonEmtpyValues()
  * 
  * @param: sheet, string = the sheet you want to get the values from
  * @param: column, int = the column you want to get all values for
+ * @return: list of non-empty values
+ * 
  * 
  */
 function getNonEmptyValues(sheet, column) {
@@ -518,6 +476,15 @@ function getTodayScore() {
   jacobStats.getRange("C2").setValue(formulaResultValue);
 }
 
+/**
+ * 
+ * getAllSKUs()
+ * 
+ * creates a list of every SKU in the SKU LIST sheet when taking all of inventory
+ * 
+ * @return: the list of every SKU in the SKU list
+ * 
+ */
 function getAllSKUs() {
   // get every SKU from the the SKU list
   var skuListSheet = SPREADSHEET.getSheetByName(SKU_LIST_SHEET);
@@ -540,10 +507,18 @@ function getAllSKUs() {
   return allSKUS;
 }
 
+
+/**
+ * 
+ * doEverything()
+ * 
+ * takes inventory for every SKU in SKU List
+ * 
+ */
 function doEverything() {
   var allSKUs = getAllSKUs();
 
-  var shouldContinue = checkAllSKUs(allSKUs);
+  var shouldContinue = doubleCheckSKUs(allSKUs);
 
   if (shouldContinue == true) {
     start();
@@ -554,35 +529,80 @@ function doEverything() {
   }
 }
 
-function checkAllSKUs(allSKUs) {
-  // get a list of every SKU scanned from `${currentDayOfTheWeek}_STOCKY` column C
-  var scannedSKUs = SPREADSHEET.getSheetByName(`${currentDayOfTheWeek}_STOCKY`);
-  var scannedSKUsValues = getNonEmptyValues(scannedSKUs, 3);
 
-  // remove the first item
-  scannedSKUsValues.shift();
+/**
+ * 
+ * doubleCheckSKUs(listOfSKUs = null)
+ * 
+ * alert the user of all the SKUs that were scanned but not inside SKU list for the day
+ * if allSKUs is provided, it will use that list instead of the day's SKU list
+ * 
+ */
+function doubleCheckSKUs(listOfSKUs = null) {
+  var stockySheet = SPREADSHEET.getSheetByName(`${currentDayOfTheWeek}_STOCKY`);
 
-  // find any SKUs that were in the scannedSKUs list but not in all SKUs list
+  if (!stockySheet) {
+    throw new Error ("JASIAH cannot find the imported Stocky data.");
+  }
+
+  var scannedSKUs = getNonEmptyValues(stockySheet, 3);
+
+  scannedSKUs.shift(); // remove the first item (will be a header)
+
+  // if the listOfSKUs was provided (we are multiple days of inventory or all of inventory), use that. If not, get today's list of SKUs
+  var comparisonSKUs = listOfSKUs ? listOfSKUs : getSKUList(dayToNumber(currentDayOfTheWeek));
+
   var missingSKUs = [];
-  for (var i = 0; i < scannedSKUsValues.length; i++) {
-    var scannedSKU = scannedSKUsValues[i];
-    if (allSKUs.indexOf(scannedSKU) === -1) {
-      missingSKUs.push(scannedSKU);
+  for (var i = 0; i < scannedSKUs.length; i++) {
+    var currentSKU = scannedSKUs[i];
+    if (comparisonSKUs.indexOf(currentSKU) === -1) {
+      missingSKUs.push(currentSKU);
     }
   }
 
-  // alert ui with any SKUs that were in 
   if (missingSKUs.length == 0) {
-    UI.alert("All scanned SKUs are in today's SKU list :)");
+    UI.alert("All scanned SKUs are in the SKU list :)");
     return true;
   }
   else {
-    var response = UI.alert(`Below is all SKUs that were scanned today, but not inside the SKU list: \n\n\n ${missingSKUs} \n\n\n Do you want to continue anyway?`, UI.ButtonSet.YES_NO);
+    var response = UI.alert(`Below are all SKUs that were scanned today, but not inside the SKU list: \n\n\n ${missingSKUs} \n\n\n Do you want to continue anyway?`, UI.ButtonSet.YES_NO);
     if (response == UI.Button.YES) {
       return true;
     }
     else {
       return false;
     }
+  }
+}
+
+function takeMultipleDaysOfInventory() {
+  var htmlOutput = HtmlService.createHtmlOutputFromFile('selectMultipleDays')
+      .setWidth(600)
+      .setHeight(125);
+  SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Which Days?');
+}
+
+function handleSelectedOptions(days) {
+  if (days.length > 0) {
+    var bigSKUList = [];
+
+    for (var i = 0; i < days.length; i++) {
+      var currentNumber = dayToNumber(days[i])
+      var currentSKUList = getSKUList(currentNumber);
+      bigSKUList.push(currentSKUList);
+    }
+
+    var bigSKUList = bigSKUList.flat();
+
+    // check for any SKUs that were scanned, but not inside today's SKU list
+    var shouldContinue = doubleCheckSKUs(bigSKUList);
+
+    if (shouldContinue == true) {
+      start();
+      filterSKUs(bigSKUList);
+      prettify();
+    }
+  } else {
+    UI.alert('No options selected...');
   }
 }
