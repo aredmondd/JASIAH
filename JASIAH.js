@@ -606,3 +606,5 @@ function handleSelectedOptions(days) {
     UI.alert('No options selected...');
   }
 }
+
+
