@@ -249,6 +249,9 @@ function getSKUList(column) {
 function insertFormulas() {
   let lastRow = currentDaySheet.getLastRow();
 
+  // loop over every cell in the sheet and insert the formula based on what cell we are in
+  // column M -> stockyTotals formula
+  // column N -> sumFormula
   for (let i = 2; i <= lastRow; i++) {
     let stockyTotalsCell = currentDaySheet.getRange("M" + i);
     let sumCell = currentDaySheet.getRange("N" + i);
@@ -274,18 +277,15 @@ function insertFormulas() {
  * 
  */
 function dayToNumber(day) {
-  switch (day) {
-    case 'MONDAY':
-      return 1;
-    case 'TUESDAY':
-      return 2;
-    case 'WEDNESDAY':
-      return 3;
-    case 'THURSDAY':
-      return 4;
-    case 'FRIDAY':
-      return 5;
-  }
+  const dayMap = {
+    'MONDAY': 1,
+    'TUESDAY': 2,
+    'WEDNESDAY': 3,
+    'THURSDAY': 4,
+    'FRIDAY': 5
+  };
+  
+  return dayMap[day];
 }
 
 
@@ -392,7 +392,7 @@ function onOpen() {
       .addItem("Take today's inventory", 'execute')
       .addItem("Take multiple days of inventory", "takeMultipleDaysOfInventory")
       .addItem('Take custom day inventory (M/T/W/TH/F)', 'takeCustomInventory')
-      .addItem('Take inventory of everything', 'doEverything')
+      .addItem('Take inventory of everything', 'takeAllOfInventory')
       .addItem('Export inventory', 'exportSheet')
       .addItem('Clear sheet', 'clear')
       .addToUi();
@@ -441,7 +441,7 @@ function takeCustomInventory() {
  * 
  */
 function clear() {
-  let response = UI.alert("Are you sure you want to delete any non-standard sheets? (You can probably undo this)", UI.ButtonSet.YES_NO);
+  let response = UI.alert("Are you sure you want to delete any non-standard sheets?", UI.ButtonSet.YES_NO);
 
   if (response == UI.Button.YES) {
     let allSheets = SPREADSHEET.getSheets();
@@ -464,7 +464,7 @@ function clear() {
  * @param: column, int = the column you want to get all values for
  * @returns: flatValues, Array = list of non-empty values
  * 
- * 
+ * get all non empty values from $sheet at column $column
  */
 function getNonEmptyValues(sheet, column) {
   let lastRow = sheet.getRange(sheet.getMaxRows(), column).getNextDataCell(SpreadsheetApp.Direction.UP).getRow();
@@ -522,7 +522,6 @@ function getTodayScore() {
  * 
  * creates a list of every SKU in the SKU LIST sheet when taking all of inventory
  * 
- * 
  */
 function getAllSKUs() {
   // get every SKU from the the SKU list
@@ -549,7 +548,7 @@ function getAllSKUs() {
 
 /**
  * 
- * doEverything()
+ * takeAllOfInventory()
  * 
  * @params: None
  * @returns: None
@@ -557,7 +556,7 @@ function getAllSKUs() {
  * takes inventory for every SKU in SKU List
  * 
  */
-function doEverything() {
+function takeAllOfInventory() {
   let allSKUs = getAllSKUs();
 
   let shouldContinue = doubleCheckSKUs(allSKUs);
