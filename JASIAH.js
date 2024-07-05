@@ -9,11 +9,11 @@ const JACOBS_STATS = "Jacob's Stats";
 const SKU_LIST_SHEET = "SKU LISTS";
 
 // other helpful variables
-var currentDayOfTheWeek = getCurrentDayOfWeek();
-var currentDaySheet; // "MONDAY_INVENTORY"
-var currentDaySheetExport; // "MONDAY_INVENTORY_EXPORT"
-var doingTodaysInventory = true;
-var dayMap = {
+let currentDayOfTheWeek = getCurrentDayOfWeek();
+let currentDaySheet; // something like... "MONDAY_INVENTORY"
+let currentDaySheetExport; // something like... "MONDAY_INVENTORY_EXPORT"
+let doingTodaysInventory = true; 
+let dayMap = {
   'm': 'MONDAY', 'mon': 'MONDAY', 'monday': 'MONDAY',
   't': 'TUESDAY', 'tue': 'TUESDAY', 'tuesday': 'TUESDAY',
   'w': 'WEDNESDAY', 'wed': 'WEDNESDAY', 'wednesday': 'WEDNESDAY',
@@ -26,12 +26,15 @@ var dayMap = {
  * 
  * execute()
  * 
+ * @params: None
+ * @returns: None
+ * 
  * main driver. duplicates sheet, deletes any non-valid SKUs, and cleans everything up.
  * 
  */
 function execute() {
   // check for any SKUs that were scanned, but not inside today's SKU list
-  var shouldContinue = doubleCheckSKUs();
+  let shouldContinue = doubleCheckSKUs();
 
   if (shouldContinue == true) {
     start();
@@ -44,16 +47,19 @@ function execute() {
  * 
  * exportSheet()
  * 
+ * @params: None
+ * @returns: None
+ * 
  * duplicates the inventory sheet and formats it so that we can import it back into Shopify.
  * 
  */
 function exportSheet() {
   // get all the sheets
-  var allSheets = SPREADSHEET.getSheets();
+  let allSheets = SPREADSHEET.getSheets();
 
   // find the day of the week we are currently taking inventory for
-  for (var i = 0; i < allSheets.length; i++) {
-    var currentSheet = allSheets[i];
+  for (let i = 0; i < allSheets.length; i++) {
+    let currentSheet = allSheets[i];
     if (currentSheet.getName().endsWith("_STOCKY")) {
       currentDayOfTheWeek = currentSheet.getName().split('_')[0];
     }
@@ -62,12 +68,12 @@ function exportSheet() {
   // duplicate the current day sheet, rename to ${currentDaySheet}_EXPORT
   duplicateSheet(`${currentDayOfTheWeek}_INVENTORY`, `${currentDayOfTheWeek}_INVENTORY_EXPORT`);
 
-  var exportSheet = SPREADSHEET.getSheetByName(`${currentDayOfTheWeek}_INVENTORY_EXPORT`);
+  let exportSheet = SPREADSHEET.getSheetByName(`${currentDayOfTheWeek}_INVENTORY_EXPORT`);
 
   // copy column N, and paste it into column P.
-  var source = exportSheet.getRange("N:N");
-  var columnN = source.getValues();
-  var target = exportSheet.getRange('P:P');
+  let source = exportSheet.getRange("N:N");
+  let columnN = source.getValues();
+  let target = exportSheet.getRange('P:P');
   target.setValues(columnN);
 
   // delete column L:O
@@ -90,7 +96,11 @@ function exportSheet() {
  * 
  * start()
  * 
+ * @params: None
+ * @returns: None
+ * 
  * duplicate the shopify inventory sheet & rename it to today's day of the week _inventory
+ * 
  */
 function start() {
   duplicateSheet(SHOPIFY_INVENTORY,`${currentDayOfTheWeek}_INVENTORY`);
@@ -102,13 +112,15 @@ function start() {
  * 
  * filterSKUs()
  * 
- * get the SKUs we want based on the day and then delete any rows that are not in that list
  * @param: skuList, array = optional list of SKUs that we are checking against.
+ * @returns: None
  * 
+ * get the SKUs we want based on the day and then delete any rows that are not in that list
+ *
  */
 function filterSKUs(skuList) {
-  var currentSKUs;
-  var rowsToKeep = [];
+  let currentSKUs;
+  let rowsToKeep = [];
   
   if (!skuList) { //if the user did not provide a skuList, get it based on today's date
     currentSKUs = getSKUList(dayToNumber(currentDayOfTheWeek));
@@ -118,15 +130,15 @@ function filterSKUs(skuList) {
   }
 
   // get all of the data from the sheet
-  var sheetData = currentDaySheet.getDataRange().getValues();
+  let sheetData = currentDaySheet.getDataRange().getValues();
 
   // make a list of all the SKUs we want to keep
   rowsToKeep.push(sheetData[0]); //keep the first row
 
   // go row by row and check which rows should be kept
-  for (var i = 1; i < sheetData.length; i++) {
-    var currentRow = sheetData[i];
-    var sku = currentRow[8]; //8 is the column with the SKU which is what we are filtering for
+  for (let i = 1; i < sheetData.length; i++) {
+    let currentRow = sheetData[i];
+    let sku = currentRow[8]; //8 is the column with the SKU which is what we are filtering for
 
     if (currentSKUs.includes(sku)) {
       rowsToKeep.push(currentRow);
@@ -144,6 +156,9 @@ function filterSKUs(skuList) {
 /**
  * 
  * prettify()
+ * 
+ * @params: None
+ * @returns: None
  * 
  * add live hats, stocky total, & totals columns
  * hide columns, remove blank lines, fix formulas, sort the sheet, and apply conditional formatting
@@ -183,10 +198,10 @@ function prettify() {
  * 
  */
 function duplicateSheet(oldSheetName, newSheetName) {
-  var sheet = SPREADSHEET.getSheetByName(oldSheetName);
+  let sheet = SPREADSHEET.getSheetByName(oldSheetName);
  
   if (sheet) {
-    var copiedSheet = sheet.copyTo(SPREADSHEET);
+    let copiedSheet = sheet.copyTo(SPREADSHEET);
     copiedSheet.setName(newSheetName);
   }
   else {
@@ -200,20 +215,20 @@ function duplicateSheet(oldSheetName, newSheetName) {
  * getSKUList()
  * 
  * @param: column, int = the column that we will be pulling SKUs for (monday = 1, tuesday = 2...)
- * @return: list of SKUs for said day
+ * @returns: skuList, Array = list of SKUs for said day
  * 
  * get the list of 'valid' SKUs so that we can delete any SKUs not in this list later
  * 
  */
 function getSKUList(column) {
   // Access the sheet with SKUs for each day
-  var sheet = SPREADSHEET.getSheetByName(SKU_LIST_SHEET);
+  let sheet = SPREADSHEET.getSheetByName(SKU_LIST_SHEET);
 
   if (!sheet) {
     throw new Error ("There is no sheet named SKU LISTS. Cannot filter by SKU.")
   }
 
-  var skuList = getNonEmptyValues(sheet, column);
+  let skuList = getNonEmptyValues(sheet, column);
 
   // Remove the first item in the array (will be MONDAY/TUESDAY/WEDNESDAY/THURSDAY/FRIDAY)
   skuList.shift();
@@ -225,19 +240,23 @@ function getSKUList(column) {
 /**
 * insertFormulas()
 *
+* @params: None
+* @returns: None
+* 
 * insert stocky lookup formula and sum formula
+* 
 */
 function insertFormulas() {
-  var lastRow = currentDaySheet.getLastRow();
+  let lastRow = currentDaySheet.getLastRow();
 
-  for (var i = 2; i <= lastRow; i++) {
-    var stockyTotalsCell = currentDaySheet.getRange("M" + i);
-    var sumCell = currentDaySheet.getRange("N" + i);
+  for (let i = 2; i <= lastRow; i++) {
+    let stockyTotalsCell = currentDaySheet.getRange("M" + i);
+    let sumCell = currentDaySheet.getRange("N" + i);
 
-    var stockyFormula = `=IFNA(VLOOKUP(I${i}, ${currentDayOfTheWeek}_STOCKY!C:P, 13, FALSE) * 25, 0 )`;
+    let stockyFormula = `=IFNA(VLOOKUP(I${i}, ${currentDayOfTheWeek}_STOCKY!C:P, 13, FALSE) * 25, 0 )`;
     stockyTotalsCell.setFormula(stockyFormula);
 
-    var sumFormula = `=SUM(L${i},M${i})`;
+    let sumFormula = `=SUM(L${i},M${i})`;
     sumCell.setFormula(sumFormula);
   }
 }
@@ -247,8 +266,10 @@ function insertFormulas() {
  * 
  * dayToNumber()
  * 
+ * @params: None
+ * @returns: int =  number noted below
+ * 
  * convert a day of the week to a number
- * @return: int number noted below
  * monday = 1, tuesday = 2, wednesday = 3, thursday = 4, friday = 5
  * 
  */
@@ -272,18 +293,18 @@ function dayToNumber(day) {
  * 
  * getCurrentDayOfWeek()
  * 
- * @return: string of day of the week
+ * @params: None
+ * @returns: dayOfWeek, string = string of day of the week
  * 
  * gets the current day of the week based on time
- * 
  * 
  */
 function getCurrentDayOfWeek() {
   // Get the correct time zone
-  var timeZone = Session.getScriptTimeZone();
+  let timeZone = Session.getScriptTimeZone();
   
   // Format the date to get the day of the week in uppercase
-  var dayOfWeek = Utilities.formatDate(NOW, timeZone, 'EEEE').toUpperCase();
+  let dayOfWeek = Utilities.formatDate(NOW, timeZone, 'EEEE').toUpperCase();
   
   return dayOfWeek;
 }
@@ -294,12 +315,13 @@ function getCurrentDayOfWeek() {
  * hideSpecifiedColumns()
  * 
  * @param: range, string = the range of columns you want to hide, A:H
+ * @returns: None
  * 
  * custom hide columns method to make things look nicer :)
  * 
  */
 function hideSpecifiedColumns(range) {
-  var hiddenRange = currentDaySheet.getRange(range);
+  let hiddenRange = currentDaySheet.getRange(range);
   currentDaySheet.hideColumn(hiddenRange);
 }
 
@@ -308,11 +330,14 @@ function hideSpecifiedColumns(range) {
  * 
  * sortSheetBySKU()
  * 
+ * @params: None
+ * @returns: None
+ * 
  * sort the newly made sheet alphabetically for easy access to live counting hats
  * 
  */
 function sortSheetBySKU() {
-  var range = currentDaySheet.getRange(2, 1, currentDaySheet.getLastRow() - 1, currentDaySheet.getLastColumn());
+  let range = currentDaySheet.getRange(2, 1, currentDaySheet.getLastRow() - 1, currentDaySheet.getLastColumn());
   range.sort({column: 9, ascending: true});
 }
 
@@ -321,28 +346,31 @@ function sortSheetBySKU() {
  * 
  * conditionalFormatting()
  * 
+ * @params: None
+ * @returns: None
+ * 
  * applies conditional formats for two parameters:
  * 1. if shopify inventory < our inventory mark it yellow
  * 2. if shopify inventory < our inventory by 25 or more mark it red
  * 
  */
 function conditionalFormatting() {
-  var range = currentDaySheet.getRange("O2:O");
+  let range = currentDaySheet.getRange("O2:O");
   range.clearFormat();
 
-  var yellowRule = SpreadsheetApp.newConditionalFormatRule()
+  let yellowRule = SpreadsheetApp.newConditionalFormatRule()
     .whenFormulaSatisfied("=O2 < N2")
     .setBackground("#FFFF00")
     .setRanges([range])
     .build();
   
-  var redRule = SpreadsheetApp.newConditionalFormatRule()
+  let redRule = SpreadsheetApp.newConditionalFormatRule()
     .whenFormulaSatisfied("=(N2 - O2) >= 25")
     .setBackground("#FF0000")
     .setRanges([range])
     .build();
 
-  var rules = currentDaySheet.getConditionalFormatRules();
+  let rules = currentDaySheet.getConditionalFormatRules();
   rules.push(redRule);
   rules.push(yellowRule);
   currentDaySheet.setConditionalFormatRules(rules);
@@ -353,27 +381,30 @@ function conditionalFormatting() {
  * 
  * onOpen()
  * 
+ * @params: None
+ * @returns: None
+ * 
  * adds UI element to run execute() from within google sheets
  * 
  */
 function onOpen() {
-  // Create a custom menu
   UI.createMenu('JASIAH')
       .addItem("Take today's inventory", 'execute')
       .addItem("Take multiple days of inventory", "takeMultipleDaysOfInventory")
-      .addItem('Export inventory', 'exportSheet')
       .addItem('Take custom day inventory (M/T/W/TH/F)', 'takeCustomInventory')
       .addItem('Take inventory of everything', 'doEverything')
+      .addItem('Export inventory', 'exportSheet')
       .addItem('Clear sheet', 'clear')
       .addToUi();
 }
 
 
-
-
 /**
  * 
  * takeCustomInventory()
+ * 
+ * @params: None
+ * @returns: None
  * 
  * takes inventory based on a day that the user inputs inside google sheets
  * 
@@ -381,11 +412,11 @@ function onOpen() {
 function takeCustomInventory() {
   doingTodaysInventory = false;
 
-  var response = UI.prompt("Which day of the week would you like to take inventory for? \n (e.g monday: m, mon, or monday)");
+  let response = UI.prompt("Which day of the week would you like to take inventory for? \n (e.g monday: m, mon, or monday)");
 
   // Check if the user clicked OK
   if (response.getSelectedButton() == UI.Button.OK) {
-    var userInput = response.getResponseText().toLowerCase();
+    let userInput = response.getResponseText().toLowerCase();
 
     // if the input is inside the dictionary, move forward
     if(dayMap[userInput]) {
@@ -403,17 +434,20 @@ function takeCustomInventory() {
  * 
  * clear()
  * 
+ * @params: None
+ * @returns: None
+ * 
  * deletes any non-standard sheets (stocky, shopify, exports, etc)
  * 
  */
 function clear() {
-  var response = UI.alert("Are you sure you want to delete any non-standard sheets? (You can probably undo this)", UI.ButtonSet.YES_NO);
+  let response = UI.alert("Are you sure you want to delete any non-standard sheets? (You can probably undo this)", UI.ButtonSet.YES_NO);
 
   if (response == UI.Button.YES) {
-    var allSheets = SPREADSHEET.getSheets();
+    let allSheets = SPREADSHEET.getSheets();
 
     allSheets.forEach(sheet => {
-      var name = sheet.getName();
+      let name = sheet.getName();
       if (name.endsWith("_STOCKY") || name.endsWith("_INVENTORY") || name.endsWith("_EXPORT") || name === SHOPIFY_INVENTORY) {
         SPREADSHEET.deleteSheet(sheet);
       }
@@ -428,16 +462,16 @@ function clear() {
  * 
  * @param: sheet, string = the sheet you want to get the values from
  * @param: column, int = the column you want to get all values for
- * @return: list of non-empty values
+ * @returns: flatValues, Array = list of non-empty values
  * 
  * 
  */
 function getNonEmptyValues(sheet, column) {
-  var lastRow = sheet.getRange(sheet.getMaxRows(), column).getNextDataCell(SpreadsheetApp.Direction.UP).getRow();
-  var range = sheet.getRange(1, column, lastRow);
-  var values = range.getValues();
+  let lastRow = sheet.getRange(sheet.getMaxRows(), column).getNextDataCell(SpreadsheetApp.Direction.UP).getRow();
+  let range = sheet.getRange(1, column, lastRow);
+  let values = range.getValues();
 
-  var flatValues = values.map(function(row) {
+  let flatValues = values.map(function(row) {
     return row[0];
   })
 
@@ -449,12 +483,15 @@ function getNonEmptyValues(sheet, column) {
  * 
  * getTodayScore()
  * 
+ * @params: None
+ * @returns: None
+ * 
  * inserts inventory score (see docs for formula) into the sheet
  * 
  */
 function getTodayScore() {
   // open the jacob stats sheet
-  var jacobStats = SPREADSHEET.getSheetByName(JACOBS_STATS);
+  let jacobStats = SPREADSHEET.getSheetByName(JACOBS_STATS);
 
   if (!jacobStats) {
     throw new Error ("No sheet named 'Jacob's Stats'");
@@ -464,7 +501,7 @@ function getTodayScore() {
   jacobStats.insertRowBefore(2);
 
   // in A2, insert today's date
-  var formattedDate = Utilities.formatDate(NOW, Session.getScriptTimeZone(), "MM/dd/yy");
+  let formattedDate = Utilities.formatDate(NOW, Session.getScriptTimeZone(), "MM/dd/yy");
   jacobStats.getRange("A2").setValue(formattedDate);
 
   // in B2, insert today's DOTW
@@ -472,7 +509,7 @@ function getTodayScore() {
 
   // in C2, insert the custom formula based on the day of the week
   jacobStats.getRange("C2").setFormula(`=CONCATENATE(ROUND((SUM(${currentDayOfTheWeek}_INVENTORY!N:N) / SUM(${currentDayOfTheWeek}_INVENTORY!O:O)) * 100, 2), "%")`);
-  var formulaResultValue = jacobStats.getRange("C2").getValue();
+  let formulaResultValue = jacobStats.getRange("C2").getValue();
   jacobStats.getRange("C2").setValue(formulaResultValue);
 }
 
@@ -480,29 +517,31 @@ function getTodayScore() {
  * 
  * getAllSKUs()
  * 
+ * @params: None
+ * @returns: allSKUs, Array = list of every SKU in the SKU list
+ * 
  * creates a list of every SKU in the SKU LIST sheet when taking all of inventory
  * 
- * @return: the list of every SKU in the SKU list
  * 
  */
 function getAllSKUs() {
   // get every SKU from the the SKU list
-  var skuListSheet = SPREADSHEET.getSheetByName(SKU_LIST_SHEET);
+  let skuListSheet = SPREADSHEET.getSheetByName(SKU_LIST_SHEET);
 
   if (!skuListSheet) {
     throw new Error ("No sheet named 'SKU LISTS'");
   }
 
   // Get all of the SKUs from all the columns
-  var allSKUS = [];
+  let allSKUS = [];
 
-  for (var i = 1; i <= 5; i++) {
-    var currentRange = getNonEmptyValues(skuListSheet, i);
+  for (let i = 1; i <= 5; i++) {
+    let currentRange = getNonEmptyValues(skuListSheet, i);
     currentRange.shift();
     allSKUS.push(currentRange);
   }
 
-  var allSKUS = allSKUS.flat();
+  allSKUS = allSKUS.flat();
 
   return allSKUS;
 }
@@ -512,13 +551,16 @@ function getAllSKUs() {
  * 
  * doEverything()
  * 
+ * @params: None
+ * @returns: None
+ * 
  * takes inventory for every SKU in SKU List
  * 
  */
 function doEverything() {
-  var allSKUs = getAllSKUs();
+  let allSKUs = getAllSKUs();
 
-  var shouldContinue = doubleCheckSKUs(allSKUs);
+  let shouldContinue = doubleCheckSKUs(allSKUs);
 
   if (shouldContinue == true) {
     start();
@@ -532,29 +574,32 @@ function doEverything() {
 
 /**
  * 
- * doubleCheckSKUs(listOfSKUs = null)
+ * doubleCheckSKUs()
+ * 
+ * @params: listOfSKUs, Array = optional parameter if we aren't getting SKU list based on current day
+ * @returns: boolean = If user wants to continue or not
  * 
  * alert the user of all the SKUs that were scanned but not inside SKU list for the day
- * if allSKUs is provided, it will use that list instead of the day's SKU list
+ * if listOfSKUs is provided, it will use that list instead of the day's SKU list
  * 
  */
 function doubleCheckSKUs(listOfSKUs = null) {
-  var stockySheet = SPREADSHEET.getSheetByName(`${currentDayOfTheWeek}_STOCKY`);
+  let stockySheet = SPREADSHEET.getSheetByName(`${currentDayOfTheWeek}_STOCKY`);
 
   if (!stockySheet) {
     throw new Error ("JASIAH cannot find the imported Stocky data.");
   }
 
-  var scannedSKUs = getNonEmptyValues(stockySheet, 3);
+  let scannedSKUs = getNonEmptyValues(stockySheet, 3);
 
   scannedSKUs.shift(); // remove the first item (will be a header)
 
   // if the listOfSKUs was provided (we are multiple days of inventory or all of inventory), use that. If not, get today's list of SKUs
-  var comparisonSKUs = listOfSKUs ? listOfSKUs : getSKUList(dayToNumber(currentDayOfTheWeek));
+  let comparisonSKUs = listOfSKUs ? listOfSKUs : getSKUList(dayToNumber(currentDayOfTheWeek));
 
-  var missingSKUs = [];
-  for (var i = 0; i < scannedSKUs.length; i++) {
-    var currentSKU = scannedSKUs[i];
+  let missingSKUs = [];
+  for (let i = 0; i < scannedSKUs.length; i++) {
+    let currentSKU = scannedSKUs[i];
     if (comparisonSKUs.indexOf(currentSKU) === -1) {
       missingSKUs.push(currentSKU);
     }
@@ -565,7 +610,7 @@ function doubleCheckSKUs(listOfSKUs = null) {
     return true;
   }
   else {
-    var response = UI.alert(`Below are all SKUs that were scanned today, but not inside the SKU list: \n\n\n ${missingSKUs} \n\n\n Do you want to continue anyway?`, UI.ButtonSet.YES_NO);
+    let response = UI.alert(`Below are all SKUs that were scanned today, but not inside the SKU list: \n\n\n ${missingSKUs} \n\n\n Do you want to continue anyway?`, UI.ButtonSet.YES_NO);
     if (response == UI.Button.YES) {
       return true;
     }
@@ -575,27 +620,48 @@ function doubleCheckSKUs(listOfSKUs = null) {
   }
 }
 
+/**
+ * 
+ * takeMultipleDaysOfInventory()
+ * 
+ * @params: None
+ * @returns: None
+ * 
+ * create custom HTML dialogue box to input which days of the week we are taking inventory for
+ * 
+ */
 function takeMultipleDaysOfInventory() {
-  var htmlOutput = HtmlService.createHtmlOutputFromFile('selectMultipleDays')
+  let htmlOutput = HtmlService.createHtmlOutputFromFile('selectMultipleDays')
       .setWidth(600)
       .setHeight(125);
   SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Which Days?');
 }
 
+
+/**
+ * 
+ * handleSelectedOptions()
+ * 
+ * @params: None
+ * @returns: None
+ * 
+ * Gather list of SKUs based on what days were input
+ * 
+ */
 function handleSelectedOptions(days) {
   if (days.length > 0) {
-    var bigSKUList = [];
+    let bigSKUList = [];
 
-    for (var i = 0; i < days.length; i++) {
-      var currentNumber = dayToNumber(days[i])
-      var currentSKUList = getSKUList(currentNumber);
+    for (let i = 0; i < days.length; i++) {
+      let currentNumber = dayToNumber(days[i])
+      let currentSKUList = getSKUList(currentNumber);
       bigSKUList.push(currentSKUList);
     }
 
-    var bigSKUList = bigSKUList.flat();
+    bigSKUList = bigSKUList.flat();
 
     // check for any SKUs that were scanned, but not inside today's SKU list
-    var shouldContinue = doubleCheckSKUs(bigSKUList);
+    let shouldContinue = doubleCheckSKUs(bigSKUList);
 
     if (shouldContinue == true) {
       start();
