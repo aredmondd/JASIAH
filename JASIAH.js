@@ -5,22 +5,15 @@ const UI = SpreadsheetApp.getUi();
 
 // these are the names of the spreadsheets. referenced throughout the code. can be changed if needed.
 const SHOPIFY_INVENTORY = "shopify_inventory";
-const JACOBS_STATS = "Jacob's Stats";
+const STATS_SHEET = "Inventory Stats";
 const SKU_LIST_SHEET = "SKU LISTS";
+const BACKUP_FOLDER = DriveApp.getFolderById('1T33eYnaV_DQ8En8gS8oy8rVhDaDWc1xx');
 
 // other helpful variables
 let currentDayOfTheWeek = getCurrentDayOfWeek();
 let currentDaySheet; // something like... "MONDAY_INVENTORY"
 let currentDaySheetExport; // something like... "MONDAY_INVENTORY_EXPORT"
 let doingTodaysInventory = true; 
-let dayMap = {
-  'm': 'MONDAY', 'mon': 'MONDAY', 'monday': 'MONDAY',
-  't': 'TUESDAY', 'tue': 'TUESDAY', 'tuesday': 'TUESDAY',
-  'w': 'WEDNESDAY', 'wed': 'WEDNESDAY', 'wednesday': 'WEDNESDAY',
-  'th': 'THURSDAY', 'thu': 'THURSDAY', 'thursday': 'THURSDAY',
-  'f': 'FRIDAY', 'fri': 'FRIDAY', 'friday': 'FRIDAY'
-}
-
 
 /**
  * 
@@ -73,14 +66,31 @@ function exportSheet() {
   // copy column N, and paste it into column P.
   let source = exportSheet.getRange("N:N");
   let columnN = source.getValues();
-  let target = exportSheet.getRange('P:P');
-  target.setValues(columnN);
 
-  // delete column L:O
-  exportSheet.deleteColumn(15);
+  // ask if the user wants to backup shopify inventory
+  let response = UI.alert("Do you want to backup Shopify's Inventory to the Shared Drive?", UI.ButtonSet.YES_NO);
+
+  // delete live hat column, stocky total column, and total column
   exportSheet.deleteColumn(14);
   exportSheet.deleteColumn(13); 
-  exportSheet.deleteColumn(12); 
+  exportSheet.deleteColumn(12);
+
+  if (response == UI.Button.YES) {
+    let data = exportSheet.getDataRange().getValues();
+
+    let csvContent = '';
+    data.forEach(function(rowArray) {
+      let row = rowArray.join(',');
+      csvContent += row + '\r\n';
+    });
+
+    let blob = Utilities.newBlob(csvContent, 'text/csv', `${generateBackupName()}.csv`);
+    BACKUP_FOLDER.createFile(blob);
+  }
+
+  // paste the values into the next open column
+  let target = exportSheet.getRange('L:L');
+  target.setValues(columnN);
 
   // rename cell L1 to 'Main Office'
   exportSheet.getRange("L1").setValue("Main Office");
@@ -391,42 +401,11 @@ function onOpen() {
   UI.createMenu('JASIAH')
       .addItem("Take today's inventory", 'execute')
       .addItem("Take multiple days of inventory", "takeMultipleDaysOfInventory")
-      .addItem('Take custom day inventory (M/T/W/TH/F)', 'takeCustomInventory')
+      .addItem('Take custom day inventory (M/T/W/TH/F)', 'takeCustomDayOfInventory')
       .addItem('Take inventory of everything', 'takeAllOfInventory')
       .addItem('Export inventory', 'exportSheet')
       .addItem('Clear sheet', 'clear')
       .addToUi();
-}
-
-
-/**
- * 
- * takeCustomInventory()
- * 
- * @params: None
- * @returns: None
- * 
- * takes inventory based on a day that the user inputs inside google sheets
- * 
- */
-function takeCustomInventory() {
-  doingTodaysInventory = false;
-
-  let response = UI.prompt("Which day of the week would you like to take inventory for? \n (e.g monday: m, mon, or monday)");
-
-  // Check if the user clicked OK
-  if (response.getSelectedButton() == UI.Button.OK) {
-    let userInput = response.getResponseText().toLowerCase();
-
-    // if the input is inside the dictionary, move forward
-    if(dayMap[userInput]) {
-      currentDayOfTheWeek = dayMap[userInput];
-      execute();
-    }
-    else {
-      throw new Error (`There is no such day as ${response}... check for typos?`);
-    }
-  }
 }
 
 
@@ -490,27 +469,27 @@ function getNonEmptyValues(sheet, column) {
  * 
  */
 function getTodayScore() {
-  // open the jacob stats sheet
-  let jacobStats = SPREADSHEET.getSheetByName(JACOBS_STATS);
+  // open the stats sheet
+  let statsSheet = SPREADSHEET.getSheetByName(STATS_SHEET);
 
-  if (!jacobStats) {
-    throw new Error ("No sheet named 'Jacob's Stats'");
+  if (!statsSheet) {
+    throw new Error (`No sheet named '${STATS_SHEET}'`);
   }
 
   // insert a row after row 1
-  jacobStats.insertRowBefore(2);
+  statsSheet.insertRowBefore(2);
 
   // in A2, insert today's date
   let formattedDate = Utilities.formatDate(NOW, Session.getScriptTimeZone(), "MM/dd/yy");
-  jacobStats.getRange("A2").setValue(formattedDate);
+  statsSheet.getRange("A2").setValue(formattedDate);
 
   // in B2, insert today's DOTW
-  jacobStats.getRange("B2").setValue(currentDayOfTheWeek);
+  statsSheet.getRange("B2").setValue(currentDayOfTheWeek);
 
   // in C2, insert the custom formula based on the day of the week
-  jacobStats.getRange("C2").setFormula(`=CONCATENATE(ROUND((SUM(${currentDayOfTheWeek}_INVENTORY!N:N) / SUM(${currentDayOfTheWeek}_INVENTORY!O:O)) * 100, 2), "%")`);
-  let formulaResultValue = jacobStats.getRange("C2").getValue();
-  jacobStats.getRange("C2").setValue(formulaResultValue);
+  statsSheet.getRange("C2").setFormula(`=CONCATENATE(ROUND((SUM(${currentDayOfTheWeek}_INVENTORY!N:N) / SUM(${currentDayOfTheWeek}_INVENTORY!O:O)) * 100, 2), "%")`);
+  let formulaResultValue = statsSheet.getRange("C2").getValue();
+  statsSheet.getRange("C2").setValue(formulaResultValue);
 }
 
 /**
@@ -648,6 +627,7 @@ function takeMultipleDaysOfInventory() {
  * 
  */
 function handleSelectedOptions(days) {
+  doingTodaysInventory = false;
   if (days.length > 0) {
     let bigSKUList = [];
 
@@ -672,4 +652,48 @@ function handleSelectedOptions(days) {
   }
 }
 
+/**
+ * 
+ * takeCustomDayOfInventory()
+ * 
+ * @params: None
+ * @returns: None
+ * 
+ * create custom HTML dialogue box to input which day of the week we are taking inventory for
+ * 
+ */
+function takeCustomDayOfInventory() {
+  let htmlOutput = HtmlService.createHtmlOutputFromFile('selectOneDay')
+      .setWidth(600)
+      .setHeight(125);
+  SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Which Day?');
+}
 
+/**
+ * 
+ * handleCustomDayOption()
+ * 
+ * @params: None
+ * @returns: None
+ * 
+ * takes inventory based on a day that the user inputs inside google sheets
+ * 
+ */
+function handleCustomDayOption(day) {
+  doingTodaysInventory = false;
+  currentDayOfTheWeek = day;
+  execute();
+}
+
+function generateBackupName() {
+  return `${NOW.getMonth() + 1}-${NOW.getDate()}-JASIAH-shopify-inventory-backup`
+}
+
+
+
+
+
+
+
+
+// under 700 lines :)
