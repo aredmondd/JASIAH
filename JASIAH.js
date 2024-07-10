@@ -89,11 +89,11 @@ function exportSheet() {
   }
 
   // paste the values into the next open column
-  let target = exportSheet.getRange('L:L');
+  let target = exportSheet.getRange('M:M');
   target.setValues(columnN);
 
-  // rename cell L1 to 'Main Office'
-  exportSheet.getRange("L1").setValue("Main Office");
+  // rename cell L1 to 'On Hand'
+  exportSheet.getRange("L1").setValue("On Hand");
 
   // save the result of the formula for later if doing today's inventory
   if (doingTodaysInventory == true) {
@@ -186,6 +186,13 @@ function prettify() {
   // Hide columns
   hideSpecifiedColumns("J:K");
   hideSpecifiedColumns("A:H");
+  currentDaySheet.hideColumn(currentDaySheet.getRange("O:O"));
+
+  // delete columns M, N, O, & P
+  currentDaySheet.deleteColumn(19);
+  currentDaySheet.deleteColumn(18);
+  currentDaySheet.deleteColumn(17);
+  currentDaySheet.deleteColumn(16);
 
   // update the formula to contain the correct date
   insertFormulas();
@@ -365,17 +372,17 @@ function sortSheetBySKU() {
  * 
  */
 function conditionalFormatting() {
-  let range = currentDaySheet.getRange("O2:O");
+  let range = currentDaySheet.getRange("P2:P");
   range.clearFormat();
 
   let yellowRule = SpreadsheetApp.newConditionalFormatRule()
-    .whenFormulaSatisfied("=O2 < N2")
+    .whenFormulaSatisfied("=P2 < N2")
     .setBackground("#FFFF00")
     .setRanges([range])
     .build();
   
   let redRule = SpreadsheetApp.newConditionalFormatRule()
-    .whenFormulaSatisfied("=(N2 - O2) >= 25")
+    .whenFormulaSatisfied("=(N2 - P2) >= 25")
     .setBackground("#FF0000")
     .setRanges([range])
     .build();
@@ -688,12 +695,4 @@ function handleCustomDayOption(day) {
 function generateBackupName() {
   return `${NOW.getMonth() + 1}-${NOW.getDate()}-JASIAH-shopify-inventory-backup`
 }
-
-
-
-
-
-
-
-
 // under 700 lines :)
