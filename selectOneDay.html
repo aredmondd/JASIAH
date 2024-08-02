@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      .container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        text-align: center;
+      }
+      .button-group {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .button-group button {
+        margin: 5px;
+        padding: 8px 16px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #202124;
+        background-color: #f1f3f4;
+        border: 1px solid #dadce0;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s, box-shadow 0.3s;
+      }
+      .button-group button:hover {
+        background-color: #e8eaed;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+      }
+      .button-group button:active {
+        background-color: #d2e3fc;
+      }
+      .button-group button.selected {
+        background-color: #4CAF50; /* Green */
+        color: white;
+        border: 1px solid #4CAF50;
+      }
+      .submit-button {
+        padding: 8px 16px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #fff;
+        background-color: #1a73e8;
+        border: 1px solid #1a73e8;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s, box-shadow 0.3s;
+      }
+      .submit-button:hover {
+        background-color: #1558d6;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+      }
+      .submit-button:active {
+        background-color: #0f47a1;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="button-group">
+        <button onclick="toggleSelection(this)">MONDAY</button>
+        <button onclick="toggleSelection(this)">TUESDAY</button>
+        <button onclick="toggleSelection(this)">WEDNESDAY</button>
+        <button onclick="toggleSelection(this)">THURSDAY</button>
+        <button onclick="toggleSelection(this)">FRIDAY</button>
+      </div>
+      <br>
+      <button class="submit-button" onclick="submitSelection()">Submit</button>
+    </div>
+    <script>
+      function toggleSelection(button) {
+        const selectedButton = document.querySelector('.button-group button.selected');
+        if (selectedButton) {
+          selectedButton.classList.remove('selected');
+        }
+        button.classList.add('selected');
+      }
+
+      function submitSelection() {
+        const selectedButton = document.querySelector('.button-group button.selected');
+        const selectedValue = selectedButton ? selectedButton.textContent : null;
+        google.script.run.handleCustomDayOption(selectedValue);
+        google.script.host.close();
+      }
+    </script>
+  </body>
+</html>
