@@ -7,7 +7,6 @@ const UI = SpreadsheetApp.getUi();
 const SHOPIFY_INVENTORY = "shopify_inventory";
 const STATS_SHEET = "Inventory Stats";
 const SKU_LIST_SHEET = "SKU LISTS";
-const BACKUP_FOLDER = DriveApp.getFolderById('1T33eYnaV_DQ8En8gS8oy8rVhDaDWc1xx');
 
 // other helpful variables
 let currentDayOfTheWeek = getCurrentDayOfWeek();
@@ -84,6 +83,8 @@ function exportSheet() {
       csvContent += row + '\r\n';
     });
 
+    const BACKUP_FOLDER = DriveApp.getFolderById('1T33eYnaV_DQ8En8gS8oy8rVhDaDWc1xx');
+
     let blob = Utilities.newBlob(csvContent, 'text/csv', `${generateBackupName()}.csv`);
     BACKUP_FOLDER.createFile(blob);
   }
@@ -93,7 +94,7 @@ function exportSheet() {
   target.setValues(columnN);
 
   // rename cell L1 to 'On Hand'
-  exportSheet.getRange("L1").setValue("On Hand");
+  exportSheet.getRange("M1").setValue("On Hand");
 
   // save the result of the formula for later if doing today's inventory
   if (doingTodaysInventory == true) {
@@ -411,6 +412,8 @@ function onOpen() {
       .addItem('Take custom day inventory (M/T/W/TH/F)', 'takeCustomDayOfInventory')
       .addItem('Take inventory of everything', 'takeAllOfInventory')
       .addItem('Export inventory', 'exportSheet')
+      .addItem('Intake', 'intakeBoxes')
+      .addItem('Format Intake Sheet', 'formatIntakeSheet')
       .addItem('Clear sheet', 'clear')
       .addToUi();
 }
@@ -494,7 +497,7 @@ function getTodayScore() {
   statsSheet.getRange("B2").setValue(currentDayOfTheWeek);
 
   // in C2, insert the custom formula based on the day of the week
-  statsSheet.getRange("C2").setFormula(`=CONCATENATE(ROUND((SUM(${currentDayOfTheWeek}_INVENTORY!N:N) / SUM(${currentDayOfTheWeek}_INVENTORY!O:O)) * 100, 2), "%")`);
+  statsSheet.getRange("C2").setFormula(`=CONCATENATE(ROUND((SUM(${currentDayOfTheWeek}_INVENTORY!N:N) / SUM(${currentDayOfTheWeek}_INVENTORY!P:P)) * 100, 2), "%")`);
   let formulaResultValue = statsSheet.getRange("C2").getValue();
   statsSheet.getRange("C2").setValue(formulaResultValue);
 }
@@ -695,4 +698,54 @@ function handleCustomDayOption(day) {
 function generateBackupName() {
   return `${NOW.getMonth() + 1}-${NOW.getDate()}-JASIAH-shopify-inventory-backup`
 }
-// under 700 lines :)
+
+function intakeBoxes() {
+    let intakeSheet = SPREADSHEET.getSheetByName(`INTAKE`);
+    let skuSheet = SPREADSHEET.getSheetByName(SKU_LIST_SHEET);
+
+    if (!intakeSheet) {
+      throw new Error ("Cannot find sheet named 'INTAKE'. Please make sure it is identical (including caps).");
+    }
+    
+    let source = intakeSheet.getRange("C2:C");
+    let target = skuSheet.getRange("F2:F");
+
+    source.copyTo(target);
+
+    duplicateSheet(SHOPIFY_INVENTORY, "Today's intake");
+
+    currentDaySheet = SPREADSHEET.getSheetByName("Today's intake");
+
+    filterSKUs(getNonEmptyValues(skuSheet, 6));
+
+    hideSpecifiedColumns("J:K");
+    hideSpecifiedColumns("A:H");
+
+    currentDaySheet.getRange("R1").setValue("New On Hand").setFontWeight("bold");
+
+    let lastRow = intakeSheet.getLastRow();
+
+    for (let i = 2; i <= lastRow; i++) {
+      let stockyTotalsCell = currentDaySheet.getRange("R" + i);
+
+      let stockyFormula = `=SUM(IFNA(VLOOKUP(I${i}, INTAKE!C:P, 13, FALSE) * 25, 0 ), Q2)`;
+      stockyTotalsCell.setFormula(stockyFormula);
+    }
+}
+
+function formatIntakeSheet() {
+  currentDaySheet = SPREADSHEET.getSheetByName("Today's intake");
+  currentDaySheet.getRange("R1").setValue("On Hand");
+
+  let source = currentDaySheet.getRange("R:R");
+  let columnR = source.getValues();
+
+  let target = currentDaySheet.getRange("R:R");
+  target.setValues(columnR);
+
+  currentDaySheet.deleteColumn(13);
+  currentDaySheet.deleteColumn(13);
+  currentDaySheet.deleteColumn(13);
+  currentDaySheet.deleteColumn(13);
+  currentDaySheet.deleteColumn(13);
+}
